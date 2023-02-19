@@ -3,7 +3,17 @@ const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 
 exports.getAllUser = catchAsync(async (req, res, next) => {
-  const users = await User.find();
+  const users = await User.find().populate([
+    {
+      path: "followers",
+      select: "name email",
+    },
+    {
+      path: "followings",
+      select: "name email",
+    },
+  ]);
+
   res.status(200).json({
     status: "success",
     results: users.length,
@@ -12,13 +22,53 @@ exports.getAllUser = catchAsync(async (req, res, next) => {
 });
 
 exports.getUser = catchAsync(async (req, res, next) => {
-  const user = await User.findById(req.params.id);
+  const user = await User.findById(req.params.id).populate([
+    {
+      path: "followers",
+      select: "name email",
+    },
+    {
+      path: "followings",
+      select: "name email",
+    },
+    {
+      path: "blockList",
+      select: "name email",
+    },
+  ]);
+
   if (!user) {
     return next(new AppError("no data found!", 404));
   }
   res.status(200).json({
     status: "success",
     data: user,
+  });
+});
+
+// update by admin
+exports.updateUser = catchAsync(async (req, res, next) => {
+  const user = await User.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true,
+  });
+  if (!user) {
+    return next(new AppError("no data found!", 404));
+  }
+  res.status(200).json({
+    status: "updated successfully",
+    data: user,
+  });
+});
+
+exports.deleteUser = catchAsync(async (req, res, next) => {
+  const user = await User.findByIdAndDelete(req.params.id);
+  if (!user) {
+    return next(new AppError("no data found!", 404));
+  }
+  res.status(200).json({
+    status: "deleted successfully",
+    data: null,
   });
 });
 
@@ -48,28 +98,60 @@ exports.deleteMe = catchAsync(async (req, res, next) => {
   });
 });
 
-// update by admin
-exports.updateUser = catchAsync(async (req, res, next) => {
-  const user = await User.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
-  if (!user) {
-    return next(new AppError("no data found!", 404));
-  }
-  res.status(200).json({
-    status: "updated successfully",
-    data: user,
-  });
+exports.followUser = catchAsync(async (req, res, next) => {
+  const currentUser = req.user;
+  // prevent from following yourself
+  if (req.query.id && currentUser.id !== req.query.id) {
+    const user = await User.findById(req.query.id);
+
+    if (!user) {
+      return next(new AppError("no user found!", 404));
+    }
+    if (currentUser.followings.includes(user.id)) {
+      // unfollow
+      const index = currentUser.followings.indexOf(user.id);
+      currentUser.followings.splice(index, 1);
+
+      const index2 = user.followers.indexOf(currentUser.id);
+      user.followers.splice(index2, 1);
+    } else {
+      // follow
+      currentUser.followings.push(user.id);
+      user.followers.push(currentUser.id);
+    }
+
+    await currentUser.save();
+    await user.save();
+
+    res.status(200).json({
+      status: "success",
+      data: currentUser,
+    });
+  } else return next(new AppError("Invalid request.", 400));
 });
 
-exports.deleteUser = catchAsync(async (req, res, next) => {
-  const user = await User.findByIdAndDelete(req.params.id);
-  if (!user) {
-    return next(new AppError("no data found!", 404));
-  }
-  res.status(200).json({
-    status: "deleted successfully",
-    data: null,
-  });
+exports.blockUser = catchAsync(async (req, res, next) => {
+  const currentUser = req.user;
+  if (req.query.id && currentUser.id !== req.query.id) {
+    const user = await User.findById(req.query.id);
+
+    if (!user) {
+      return next(new AppError("no user found!", 404));
+    }
+    if (currentUser.blockList.includes(user.id)) {
+      // unblock
+      const index = currentUser.blockList.indexOf(user.id);
+      currentUser.blockList.splice(index, 1);
+    } else {
+      // block
+      currentUser.blockList.push(user.id);
+    }
+
+    await currentUser.save();
+
+    res.status(200).json({
+      status: "success",
+      data: currentUser,
+    });
+  } else return next(new AppError("Invalid request...", 400));
 });

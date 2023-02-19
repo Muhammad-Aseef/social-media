@@ -18,6 +18,24 @@ const userSchema = new mongoose.Schema({
     required: [true, "user must enter the password"],
     select: false,
   },
+  followers: [
+    {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: "User",
+    },
+  ],
+  followings: [
+    {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: "User",
+    },
+  ],
+  blockList: [
+    {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: "User",
+    },
+  ],
   active: {
     type: Boolean,
     default: true,
