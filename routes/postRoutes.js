@@ -10,12 +10,14 @@ router
   .get(postController.getAllPosts)
   .post(authController.protect, postController.createPost);
 
+router.route("/like").patch(authController.protect, postController.likePost);
+router.route("/fav").post(authController.protect, postController.addToFav);
+router.route("/user/:id").get(postController.userPosts);
+
 router
   .route("/:id")
   .get(postController.getPost)
-  .patch(postController.updatePost)
-  .delete(postController.deletePost);
-
-router.route("/like").post(authController.protect, postController.likePost);
+  .patch(authController.protect, postController.updatePost)
+  .delete(authController.protect, postController.deletePost);
 
 module.exports = router;

@@ -9,13 +9,15 @@ router
   .post(authController.protect, commentController.createComment);
 
 router
-  .route("/:id")
-  .get(commentController.getComment)
-  .patch(commentController.updateComment)
-  .delete(commentController.deleteComment);
+  .route("/like")
+  .patch(authController.protect, commentController.likeComment);
+
+router.route("/post/:id").get(commentController.postComments);
 
 router
-  .route("/like")
-  .post(authController.protect, commentController.likeComment);
+  .route("/:id")
+  .get(commentController.getComment)
+  .patch(authController.protect, commentController.updateComment)
+  .delete(authController.protect, commentController.deleteComment);
 
 module.exports = router;

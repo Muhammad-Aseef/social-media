@@ -1,4 +1,5 @@
 const Post = require("../models/postModel");
+const User = require("../models/userModel");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 
@@ -55,11 +56,16 @@ exports.createPost = catchAsync(async (req, res, next) => {
 });
 
 exports.updatePost = catchAsync(async (req, res, next) => {
-  // req.body.user = req.user.id;
-  const post = await Post.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const post = await Post.findOneAndUpdate(
+    {
+      $and: [{ _id: req.params.id }, { user: req.user.id }],
+    },
+    req.body,
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
   if (!post) {
     return next(new AppError("no data found!", 404));
   }
@@ -70,7 +76,10 @@ exports.updatePost = catchAsync(async (req, res, next) => {
 });
 
 exports.deletePost = catchAsync(async (req, res, next) => {
-  const post = await Post.findByIdAndDelete(req.params.id);
+  const post = await Post.findOneAndDelete({
+    $and: [{ _id: req.params.id }, { user: req.user.id }],
+  });
+  // const post = await Post.findByIdAndDelete(req.params.id);
   if (!post) {
     return next(new AppError("no data found!", 404));
   }
@@ -95,6 +104,12 @@ exports.likePost = catchAsync(async (req, res, next) => {
   if (!post) {
     return next(new AppError("no data found!", 404));
   }
+  // checking post's user blocklist
+  const postUser = await User.findById(post.user.id);
+  if (postUser.blockList.includes(req.user.id)) {
+    return next(new AppError("not allowed", 400));
+  }
+
   if (!post.likes.includes(req.user.id)) {
     // like
     post.likes.push(req.user.id);
@@ -108,5 +123,45 @@ exports.likePost = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: post,
+  });
+});
+
+exports.userPosts = catchAsync(async (req, res, next) => {
+  const posts = await Post.find({ user: req.params.id }).populate([
+    {
+      path: "likes",
+      select: "name email",
+    },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    total: posts.length,
+    data: posts,
+  });
+});
+
+exports.addToFav = catchAsync(async (req, res, next) => {
+  const currentUser = req.user;
+  const postId = req.body.post;
+
+  const post = await Post.findById(postId);
+  if (!post) {
+    return next(new AppError("no data found!", 404));
+  }
+
+  if (!currentUser.favPosts.includes(postId)) {
+    // add
+    currentUser.favPosts.push(postId);
+  } else {
+    // remove
+    const index = currentUser.favPosts.indexOf(postId);
+    currentUser.favPosts.splice(index, 1);
+  }
+  await currentUser.save();
+
+  res.status(200).json({
+    status: "success",
+    data: currentUser,
   });
 });

@@ -20,8 +20,8 @@ router
   .route("/deleteMe")
   .delete(authController.protect, userController.deleteMe);
 
-router.route("/follow").post(authController.protect, userController.followUser);
-router.route("/block").post(authController.protect, userController.blockUser);
+router.route("/follow").patch(authController.protect, userController.followUser);
+router.route("/block").patch(authController.protect, userController.blockUser);
 
 router
   .route("/:id")

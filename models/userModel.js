@@ -36,6 +36,12 @@ const userSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  favPosts: [
+    {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: "Post",
+    },
+  ],
   active: {
     type: Boolean,
     default: true,

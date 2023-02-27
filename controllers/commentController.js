@@ -39,9 +39,15 @@ exports.createComment = catchAsync(async (req, res, next) => {
   req.body.user = req.user.id;
 
   if (req.body.post) {
-    const post = await Post.findById(req.body.post);
+    const post = await Post.findById(req.body.post).populate({
+      path: "user",
+      select: "blockList",
+    });
     if (!post) {
       return next(new AppError(`no post found with id ${req.body.post}`, 404));
+    }
+    if (post.user.blockList.includes(req.user.id)) {
+      return next(new AppError("not allowed", 400));
     }
     const newComment = await Comment.create(req.body);
 
@@ -55,11 +61,16 @@ exports.createComment = catchAsync(async (req, res, next) => {
 });
 
 exports.updateComment = catchAsync(async (req, res, next) => {
-  // req.body.user = req.user.id;
-  const comment = await Comment.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+  const comment = await Comment.findOneAndUpdate(
+    {
+      $and: [{ _id: req.params.id }, { user: req.user.id }],
+    },
+    req.body,
+    {
+      new: true,
+      runValidators: true,
+    }
+  );
   if (!comment) {
     return next(new AppError("no data found!", 404));
   }
@@ -70,7 +81,10 @@ exports.updateComment = catchAsync(async (req, res, next) => {
 });
 
 exports.deleteComment = catchAsync(async (req, res, next) => {
-  const comment = await Comment.findByIdAndDelete(req.params.id);
+  // const comment = await Comment.findByIdAndDelete(req.params.id);
+  const comment = await Comment.findOneAndDelete({
+    $and: [{ _id: req.params.id }, { user: req.user.id }],
+  });
   if (!comment) {
     return next(new AppError("no data found!", 404));
   }
@@ -108,5 +122,24 @@ exports.likeComment = catchAsync(async (req, res, next) => {
   res.status(200).json({
     status: "success",
     data: comment,
+  });
+});
+
+exports.postComments = catchAsync(async (req, res, next) => {
+  const comments = await Comment.find({ post: req.params.id }).populate([
+    {
+      path: "user",
+      select: "name email",
+    },
+    {
+      path: "likes",
+      select: "name email",
+    },
+  ]);
+
+  res.status(200).json({
+    status: "success",
+    total: comments.length,
+    data: comments,
   });
 });

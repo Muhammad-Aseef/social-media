@@ -145,9 +145,19 @@ exports.blockUser = catchAsync(async (req, res, next) => {
     } else {
       // block
       currentUser.blockList.push(user.id);
+      // removing both users from their followings and followers list
+      currentUser.followers = currentUser.followers.filter(
+        (el) => el != user.id
+      );
+      currentUser.followings = currentUser.followings.filter(
+        (el) => el != user.id
+      );
+      user.followers = user.followers.filter((el) => el != currentUser.id);
+      user.followings = user.followings.filter((el) => el != currentUser.id);
     }
 
     await currentUser.save();
+    await user.save();
 
     res.status(200).json({
       status: "success",
