@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/userModel");
 const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
+const sendMail = require("../utils/email");
 
 const createToken = (id) => {
   return jwt.sign({ id }, process.env.TOKEN_KEY, { expiresIn: "90d" });
@@ -16,6 +17,12 @@ exports.signup = catchAsync(async (req, res, next) => {
   });
 
   const token = createToken(newUser._id);
+
+  await sendMail({
+    email: newUser.email,
+    subject: "Signup Success",
+    message: `Welcome ${newUser.name}! Enjoy our platform :)`,
+  });
   // newUser.password = null;
   res.status(201).json({
     status: "success",
@@ -49,10 +56,7 @@ exports.login = catchAsync(async (req, res, next) => {
 
 exports.protect = catchAsync(async (req, res, next) => {
   let token;
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
+  if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
     token = req.headers.authorization.split(" ")[1];
   }
   // console.log(token);
