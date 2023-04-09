@@ -146,12 +146,8 @@ exports.blockUser = catchAsync(async (req, res, next) => {
       // block
       currentUser.blockList.push(user.id);
       // removing both users from their followings and followers list
-      currentUser.followers = currentUser.followers.filter(
-        (el) => el != user.id
-      );
-      currentUser.followings = currentUser.followings.filter(
-        (el) => el != user.id
-      );
+      currentUser.followers = currentUser.followers.filter((el) => el != user.id);
+      currentUser.followings = currentUser.followings.filter((el) => el != user.id);
       user.followers = user.followers.filter((el) => el != currentUser.id);
       user.followings = user.followings.filter((el) => el != currentUser.id);
     }
@@ -164,4 +160,92 @@ exports.blockUser = catchAsync(async (req, res, next) => {
       data: currentUser,
     });
   } else return next(new AppError("Invalid request...", 400));
+});
+
+exports.requestsInfo = catchAsync(async (req, res, next) => {
+  const currentUser = req.user;
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      requests: currentUser.requests,
+      pendings: currentUser.pendingRequests,
+    },
+  });
+});
+
+exports.sendRequest = catchAsync(async (req, res, next) => {
+  const currentUser = req.user;
+  const userId = req.body.userId;
+
+  if (
+    userId &&
+    !currentUser.pendingRequests.includes(userId) &&
+    !currentUser.followings.includes(userId)
+  ) {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return next(new AppError("no user found!", 404));
+    }
+
+    currentUser.pendingRequests.push(userId);
+    user.requests.push(currentUser.id);
+
+    await currentUser.save();
+    await user.save();
+
+    res.status(200).json({
+      status: "success",
+      data: currentUser,
+    });
+  } else return next(new AppError("Invalid request!", 400));
+});
+
+exports.accept = catchAsync(async (req, res, next) => {
+  const currentUser = req.user;
+  const userId = req.body.userId;
+
+  if (userId && currentUser.requests.includes(userId)) {
+    const user = await User.findById(userId);
+
+    // removing from request and adding to followers
+    currentUser.requests = currentUser.requests.filter((el) => el != user.id);
+    currentUser.followers.push(user.id);
+
+    // removing from pending and adding to followings
+    user.pendingRequests = user.pendingRequests.filter((el) => el != currentUser.id);
+    user.followings.push(currentUser.id);
+
+    await currentUser.save();
+    await user.save();
+
+    res.status(200).json({
+      status: "success",
+      data: "accepted",
+    });
+  } else return next(new AppError("Invalid request!", 400));
+});
+
+exports.reject = catchAsync(async (req, res, next) => {
+  const currentUser = req.user;
+  const userId = req.body.userId;
+
+  if (userId && currentUser.requests.includes(userId)) {
+    const user = await User.findById(userId);
+
+    // removing from request
+    currentUser.requests = currentUser.requests.filter((el) => el != user.id);
+
+    // removing from pending
+    user.pendingRequests = user.pendingRequests.filter((el) => el != currentUser.id);
+
+    await currentUser.save();
+    await user.save();
+
+    res.status(200).json({
+      status: "success",
+      data: "rejected",
+    });
+  } else return next(new AppError("Invalid request!", 400));
 });

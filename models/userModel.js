@@ -42,6 +42,19 @@ const userSchema = new mongoose.Schema({
       ref: "Post",
     },
   ],
+  requests: [
+    {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: "User",
+    },
+  ],
+  pendingRequests: [
+    {
+      type: mongoose.SchemaTypes.ObjectId,
+      ref: "User",
+    },
+  ],
+
   active: {
     type: Boolean,
     default: true,
